@@ -29,6 +29,3 @@ If you have Python installed, open your terminal, navigate to this project folde
 If you have Node.js installed, open your terminal and run:
 * `npx serve`
 * Then open the local link provided in the terminal.
-
-## 🛠️ Next Steps for Integration
-To make this fully functional with a webcam, you will need to map a facial landmark detection model (like Google's MediaPipe Face Mesh) to the `landmarks` parameters required by `calculateEAR()` and `detectHeadPose()`.
