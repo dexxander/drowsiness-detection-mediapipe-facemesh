@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Monitoring System | Dexter Oliver Robilin</title>
+    <link rel="stylesheet" href="css/style.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <header>
+        <h1>Drowsiness & Distraction Detection</h1>
+        <p>Created by <strong>Dexter Oliver Robilin</strong></p>
+    </header>
+
+    <main class="dashboard">
+        <div class="video-container" style="position: relative; width: 640px; height: 480px; max-width: 100%;">
+            <video id="input_video" autoplay playsinline style="display: none;"></video>
+            <canvas id="output_canvas" width="640" height="480" style="width: 100%; height: auto; border-radius: 8px;"></canvas>
+        </div>
+
+        <div class="status-panel">
+            <h2>Current Status</h2>
+            <div id="drive-status" class="status-safe">Initializing Camera...</div>
+            
+            <div id="timer-card" style="display: none;">
+                <p>Eyes Closed Duration:</p>
+                <h3 id="timer-val">0.0s</h3>
+            </div>
+        </div>
+    </main>
+
+    <audio id="alarm-sound" src="assets/alarm.mp3" preload="auto"></audio>
+    <audio id="distraction-sound" src="assets/distraction.mp3" preload="auto"></audio>
+
+    <script src="js/detection.js"></script>
+    
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const statusBadge = document.getElementById('drive-status');
+
+        function onResults(results) {
+            // Draw the camera feed to the canvas
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                const landmarks = results.multiFaceLandmarks[0];
+                
+                // I've commented this out so the grey mesh doesn't block the custom green/red boxes!
+                // drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {color: '#C0C0C070', lineWidth: 1});
+
+                // --- FEED DATA INTO YOUR DETECTION.JS FUNCTIONS ---
+
+                // 1. Calculate EAR and pass to checkDrowsiness
+                const leftEye = calculateEAR([landmarks[33], landmarks[160], landmarks[158], landmarks[133], landmarks[153], landmarks[144]]);
+                const rightEye = calculateEAR([landmarks[362], landmarks[385], landmarks[387], landmarks[263], landmarks[373], landmarks[380]]);
+                const avgEAR = (leftEye + rightEye) / 2;
+                
+                checkDrowsiness(avgEAR);
+
+                // 2. Calculate Head Pose and pass to checkDistraction
+                const headPose = detectHeadPose(landmarks);
+                checkDistraction(headPose);
+
+                // ==========================================
+                // 3. HOOK UP THE NEW VISUALS HERE
+                // ==========================================
+                drawVisuals(canvasCtx, landmarks, canvasElement.width, canvasElement.height);
+            }
+            canvasCtx.restore();
+        }
+
+        // Initialize MediaPipe Face Mesh
+        const faceMesh = new FaceMesh({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+        }});
+        
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true, // Necessary for accurate eye tracking
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        
+        faceMesh.onResults(onResults);
+
+        // Start the WebCam using MediaPipe's Camera utility
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await faceMesh.send({image: videoElement});
+            },
+            width: 640,
+            height: 480
+        });
+        
+        camera.start().then(() => {
+            statusBadge.innerText = "Active";
+            console.log("Camera started successfully.");
+        }).catch((err) => {
+            console.error("Camera failed to start:", err);
+            statusBadge.innerText = "Camera Blocked/Failed";
+        });
+    </script>
+</body>
+</html>
