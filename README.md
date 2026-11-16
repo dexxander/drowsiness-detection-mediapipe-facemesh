@@ -1,4 +1,4 @@
-# Driver Drowsiness & Distraction Detection System
+# Driver Drowsiness & Head Pose Detection System
 
 A logic-based facial tracking system designed to identify driver fatigue and distractions in real-time. Created by **Dexter Oliver Robilin**.
 
